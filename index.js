@@ -6,6 +6,9 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.SECRET_KEY);
 const port = process.env.PORT || 5000;
+var jwt = require("jsonwebtoken");
+
+// server
 
 app.use(cors());
 app.use(express.json());
@@ -22,12 +25,19 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
+
     const userCollection = client.db("yooSurvey").collection("users");
     const surveyCollection = client.db("yooSurvey").collection("surveys");
     const commentsCollection = client.db("yooSurvey").collection("comments");
     const voteCollection = client.db("yooSurvey").collection("voting");
     const paymentCollection = client.db("yooSurvey").collection("payments");
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN);
+      res.send({ token });
+    });
 
     // getting the voting data her
     app.get("/vote", async (req, res) => {
@@ -456,7 +466,7 @@ async function run() {
   } finally {
     // await client.close();
   }
-}
+} 
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
