@@ -8,7 +8,6 @@ const stripe = require("stripe")(process.env.SECRET_KEY);
 const port = process.env.PORT || 5000;
 var jwt = require("jsonwebtoken");
 
-// server
 
 app.use(cors());
 app.use(express.json());
