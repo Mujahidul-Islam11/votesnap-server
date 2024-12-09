@@ -8,7 +8,6 @@ const stripe = require("stripe")(process.env.SECRET_KEY);
 const port = process.env.PORT || 5000;
 var jwt = require("jsonwebtoken");
 
-
 app.use(cors());
 app.use(express.json());
 
@@ -32,16 +31,26 @@ async function run() {
     const voteCollection = client.db("yooSurvey").collection("voting");
     const paymentCollection = client.db("yooSurvey").collection("payments");
 
+    // token creation and passing logic
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN);
       res.send({ token });
     });
 
-    // getting the voting data her
+    // verify token logic
+    const verifyToken = (req, res, next) => {
+      // if(!req.headers.authorization){
+      //   return res.status(401).send({message: "unauthorized"});
+      // }
+      const token = req.headers.authorization;
+      console.log(token);
+    };
+
+    // voting api
     app.get("/vote", async (req, res) => {
-      const result = await voteCollection.find().toArray()
-      res.send(result)
+      const result = await voteCollection.find().toArray();
+      res.send(result);
     });
 
     app.post("/create-payment-intent", async (req, res) => {
@@ -63,8 +72,8 @@ async function run() {
       const paymentResult = await paymentCollection.insertOne(body);
       const email = body.email;
       const filter = { email: email };
-      const exist = await paymentCollection.findOne(filter)
-      if(exist){
+      const exist = await paymentCollection.findOne(filter);
+      if (exist) {
         try {
           const updateDoc = {
             $set: {
@@ -195,7 +204,7 @@ async function run() {
           title: data?.title,
           description: data?.description,
           category: data?.category,
-          deadline: data?.deadline
+          deadline: data?.deadline,
         },
       };
 
@@ -295,6 +304,7 @@ async function run() {
       const result = await surveyCollection.updateOne(query, updateDoc);
       res.send(result);
     });
+
     app.patch("/dislike/:id", async (req, res) => {
       const id = req.params.id;
       const dislikeCount = Number(req.body.dislikeCount);
@@ -309,13 +319,6 @@ async function run() {
     });
 
     // yes no voted count update route
-
-    const { ObjectId } = require("mongodb");
-
-    
-
-    
-
     app.patch("/yes/:email/:id", async (req, res) => {
       const id = req.params.id;
       const emailQuery = req.params.email;
@@ -339,27 +342,28 @@ async function run() {
       const filter = { email: emailQuery, surveyId: id };
       const existingVote = await voteCollection.findOne(filter);
 
-      if(!existingVote){
+      if (!existingVote) {
         const postResult = await voteCollection.insertOne(bodyData);
         const updateDoc = {
           $set: {
-            yesVoted: yesVoted+1,
+            yesVoted: yesVoted + 1,
           },
         };
         const result = await surveyCollection.updateOne(query, updateDoc);
-        res.send({result, postResult});
+        res.send({ result, postResult });
       }
       if (existingVote) {
-        const postResult = await voteCollection.deleteOne(filter)
+        const postResult = await voteCollection.deleteOne(filter);
         const updateDoc = {
           $set: {
-            yesVoted: yesVoted-1,
+            yesVoted: yesVoted - 1,
           },
         };
-        const result = await surveyCollection.updateOne(query, updateDoc)
-        res.send( {result, postResult} );
+        const result = await surveyCollection.updateOne(query, updateDoc);
+        res.send({ result, postResult });
       }
     });
+
     app.patch("/no/:email/:id", async (req, res) => {
       const id = req.params.id;
       const emailQuery = req.params.email;
@@ -383,28 +387,27 @@ async function run() {
       const filter = { email: emailQuery, surveyId: id };
       const existingVote = await voteCollection.findOne(filter);
 
-      if(!existingVote){
+      if (!existingVote) {
         const postResult = await voteCollection.insertOne(bodyData);
         const updateDoc = {
           $set: {
-            noVoted:  noVoted+1,
+            noVoted: noVoted + 1,
           },
         };
         const result = await surveyCollection.updateOne(query, updateDoc);
-        res.send({result, postResult});
+        res.send({ result, postResult });
       }
       if (existingVote) {
-        const postResult = await voteCollection.deleteOne(filter)
+        const postResult = await voteCollection.deleteOne(filter);
         const updateDoc = {
           $set: {
-            noVoted: noVoted- 1,
+            noVoted: noVoted - 1,
           },
         };
-        const result = await surveyCollection.updateOne(query, updateDoc)
-        res.send( {result, postResult} );
+        const result = await surveyCollection.updateOne(query, updateDoc);
+        res.send({ result, postResult });
       }
     });
-
 
     // user management routes
 
@@ -465,7 +468,7 @@ async function run() {
   } finally {
     // await client.close();
   }
-} 
+}
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
