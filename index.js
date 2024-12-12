@@ -38,21 +38,27 @@ async function run() {
       res.send({ token });
     });
 
-    // verify token logic
+    // token verification middleware
     const verifyToken = (req, res, next) => {
-      // if(!req.headers.authorization){
-      //   return res.status(401).send({message: "unauthorized"});
-      // }
-      const token = req.headers.authorization;
-      console.log(token);
+      const token = req.headers.authorization.split(" ")[1];
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "unauthorized" });
+      }
+      jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+        if(err){
+          return res.status(403).send({message: "forbidden access"});
+        }
+        req.decoded = decoded;
+        next();
+      });
     };
 
-    // voting api
     app.get("/vote", async (req, res) => {
       const result = await voteCollection.find().toArray();
       res.send(result);
     });
 
+    // payment api's
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
@@ -94,8 +100,7 @@ async function run() {
       res.send(result);
     });
 
-    // public comment routes
-
+    // public comment api's
     app.post("/comments", async (req, res) => {
       const cursor = {
         ...req.body,
@@ -111,8 +116,7 @@ async function run() {
       res.send(result);
     });
 
-    // survey mangement routes
-
+    // survey management api's
     app.get("/unPublished/:email", async (req, res) => {
       const user = req.params.email;
       const query = { email: user, status: "UnPublished" };
@@ -143,7 +147,6 @@ async function run() {
     });
 
     app.get("/surveyor", async (req, res) => {
-      // const status = req.params.status;
       const query = { status: "Published" };
       const result = await surveyCollection.find(query).toArray();
       res.send(result);
@@ -254,6 +257,7 @@ async function run() {
       const result = await surveyCollection.updateOne(query, updateDoc);
       res.send(result);
     });
+
     app.put("/report/:id", async (req, res) => {
       const id = req.params.id;
       const report = req.body.report;
@@ -409,8 +413,7 @@ async function run() {
       }
     });
 
-    // user management routes
-
+    // user management api's
     app.get("/users/admin/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
@@ -432,7 +435,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
