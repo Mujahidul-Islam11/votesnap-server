@@ -12,7 +12,6 @@ const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.USER_PASS}@clu
 app.use(cors());
 app.use(express.json());
 
-
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -33,34 +32,45 @@ async function run() {
     // token creation and passing logic
     app.post("/jwt", async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: "1h" });
       res.send({ token });
     });
 
-    // token verification middleware
+    // Verification Middlewares
     const verifyToken = (req, res, next) => {
-      const token = req.headers.authorization.split(" ")[1];
-      if (!req.headers.authorization) {
-        return res.status(401).send({ message: "unauthorized" });
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).send({ message: "Unauthorized access" });
       }
+
+      const token = authHeader.split(" ")[1];
       jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
-        if(err){
-          return res.status(403).send({message: "forbidden access"});
+        if (err) {
+          return res.status(403).send({ message: "Forbidden access" });
         }
         req.decoded = decoded;
         next();
       });
     };
 
-    // admin verification middleware
-    const verifyAdmin = async(req, res, next) => {
+    const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
-      const query = {email: email};
+      const query = { email: email };
       const user = await userCollection.findOne(query);
-      const isAdmin = user.role = "Admin";
-      console.log(isAdmin);
-      if(!isAdmin){
-        return res.status(403).send({message: "forbidden access"});
+
+      if (!user || user.role !== "Admin") {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+      next();
+    };
+
+    const verifySurveyor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email };
+      const user = await userCollection.findOne(query);
+
+      if (!user || user.role !== "Surveyor") {
+        return res.status(403).send({ message: "Forbidden access" });
       }
       next();
     };
@@ -448,7 +458,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users", verifyAdmin, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin,  async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
