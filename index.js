@@ -7,11 +7,11 @@ require("dotenv").config();
 const stripe = require("stripe")(process.env.SECRET_KEY);
 const port = process.env.PORT || 5000;
 var jwt = require("jsonwebtoken");
+const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.USER_PASS}@cluster0.u8ojnwq.mongodb.net/?retryWrites=true&w=majority`;
 
 app.use(cors());
 app.use(express.json());
 
-const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.USER_PASS}@cluster0.u8ojnwq.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -24,7 +24,6 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // await client.connect();
-
     const userCollection = client.db("yooSurvey").collection("users");
     const surveyCollection = client.db("yooSurvey").collection("surveys");
     const commentsCollection = client.db("yooSurvey").collection("comments");
@@ -51,6 +50,19 @@ async function run() {
         req.decoded = decoded;
         next();
       });
+    };
+
+    // admin verification middleware
+    const verifyAdmin = async(req, res, next) => {
+      const email = req.decoded.email;
+      const query = {email: email};
+      const user = await userCollection.findOne(query);
+      const isAdmin = user.role = "Admin";
+      console.log(isAdmin);
+      if(!isAdmin){
+        return res.status(403).send({message: "forbidden access"});
+      }
+      next();
     };
 
     app.get("/vote", async (req, res) => {
@@ -95,6 +107,7 @@ async function run() {
         }
       }
     });
+
     app.get("/paymentsHistory", async (req, res) => {
       const result = await paymentCollection.find().toArray();
       res.send(result);
@@ -435,7 +448,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
